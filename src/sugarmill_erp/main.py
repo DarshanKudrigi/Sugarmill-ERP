@@ -35,13 +35,15 @@ app = FastAPI(
 # Exception handlers
 app.add_exception_handler(IntegrityError, integrity_error_handler)
 
-# CORS Middleware
+# CORS Middleware - allow all acceptance
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=r"^https?://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include API v1 router
@@ -65,7 +67,7 @@ async def health_check() -> dict[str, str]:
 
 
 def main() -> None:
-    uvicorn.run("sugarmill_erp.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("sugarmill_erp.main:app", host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":

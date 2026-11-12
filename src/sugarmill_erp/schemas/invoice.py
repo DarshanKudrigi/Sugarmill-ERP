@@ -12,6 +12,7 @@ class InvoiceBase(BaseModel):
     total_amount: Decimal = Field(default=Decimal("0.00"), ge=0)
     tax_amount: Decimal = Field(default=Decimal("0.00"), ge=0)
     net_amount: Decimal = Field(default=Decimal("0.00"), ge=0)
+    paid_amount: Decimal = Field(default=Decimal("0.00"), ge=0)
     status: str = Field(default="Draft", max_length=50)
     notes: str | None = None
     tenant_id: uuid.UUID | None = None
@@ -29,6 +30,7 @@ class InvoiceUpdate(BaseModel):
     total_amount: Decimal | None = Field(default=None, ge=0)
     tax_amount: Decimal | None = Field(default=None, ge=0)
     net_amount: Decimal | None = Field(default=None, ge=0)
+    paid_amount: Decimal | None = Field(default=None, ge=0)
     status: str | None = Field(default=None, max_length=50)
     notes: str | None = None
     tenant_id: uuid.UUID | None = None
@@ -44,6 +46,7 @@ class InvoiceResponse(BaseModel):
     total_amount: Decimal
     tax_amount: Decimal
     net_amount: Decimal
+    paid_amount: Decimal
     status: str
     notes: str | None = None
     created_at: datetime
