@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InventoryItemBase(BaseModel):
@@ -50,4 +50,31 @@ class InventoryItemResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class StockAdjustmentCreate(BaseModel):
+    item_id: uuid.UUID = Field(..., description="ID of the inventory item to adjust")
+    quantity: Decimal = Field(..., description="Positive to add stock, negative to deduct")
+    reason: str = Field(..., min_length=3, description="Mandatory reason for adjustment")
+    adjusted_by: str = Field(default="Admin User", max_length=255)
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_nonzero(cls, v: Decimal) -> Decimal:
+        if v == 0:
+            raise ValueError("Adjustment quantity cannot be zero.")
+        return v
+
+
+class StockAdjustmentResponse(BaseModel):
+    id: uuid.UUID
+    item_id: uuid.UUID
+    item_name: str | None = None
+    quantity: Decimal
+    reason: str
+    adjusted_by: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 

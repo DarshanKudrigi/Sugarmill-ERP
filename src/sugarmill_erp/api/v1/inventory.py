@@ -1,13 +1,17 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sugarmill_erp.core.database import get_db
 from sugarmill_erp.crud.inventory import inventory_crud
+from sugarmill_erp.models.inventory import StockAdjustment
 from sugarmill_erp.schemas.inventory import (
     InventoryItemCreate,
     InventoryItemResponse,
     InventoryItemUpdate,
+    StockAdjustmentCreate,
+    StockAdjustmentResponse,
 )
 
 router = APIRouter(prefix="/inventory", tags=["Inventory Items"])
@@ -36,6 +40,76 @@ async def get_all_inventory_items(
 ) -> list[InventoryItemResponse]:
     items = await inventory_crud.get_multi(db, skip=skip, limit=limit)
     return items
+
+
+@router.get("/adjustments", response_model=list[StockAdjustmentResponse])
+async def get_stock_adjustments(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> list[StockAdjustmentResponse]:
+    stmt = (
+        select(StockAdjustment)
+        .order_by(StockAdjustment.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    res = await db.execute(stmt)
+    adjustments = res.scalars().all()
+    return [
+        StockAdjustmentResponse(
+            id=a.id,
+            item_id=a.item_id,
+            item_name=a.item.name if a.item else None,
+            quantity=a.quantity,
+            reason=a.reason,
+            adjusted_by=a.adjusted_by,
+            created_at=a.created_at,
+        )
+        for a in adjustments
+    ]
+
+
+@router.post("/adjustments", response_model=StockAdjustmentResponse, status_code=status.HTTP_201_CREATED)
+async def create_stock_adjustment(
+    adjustment_in: StockAdjustmentCreate,
+    db: AsyncSession = Depends(get_db),
+) -> StockAdjustmentResponse:
+    item = await inventory_crud.get(db, id=adjustment_in.item_id)
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Inventory item with ID '{adjustment_in.item_id}' not found.",
+        )
+
+    new_stock = item.current_stock + adjustment_in.quantity
+    if new_stock < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient stock for '{item.name}'. Current stock is {item.current_stock} {item.unit_of_measure}.",
+        )
+
+    item.current_stock = new_stock
+    adjustment = StockAdjustment(
+        tenant_id=item.tenant_id,
+        item_id=item.id,
+        quantity=adjustment_in.quantity,
+        reason=adjustment_in.reason,
+        adjusted_by=adjustment_in.adjusted_by,
+    )
+    db.add(adjustment)
+    await db.commit()
+    await db.refresh(adjustment)
+
+    return StockAdjustmentResponse(
+        id=adjustment.id,
+        item_id=adjustment.item_id,
+        item_name=item.name,
+        quantity=adjustment.quantity,
+        reason=adjustment.reason,
+        adjusted_by=adjustment.adjusted_by,
+        created_at=adjustment.created_at,
+    )
 
 
 @router.get("/{item_id}", response_model=InventoryItemResponse)

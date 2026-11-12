@@ -28,6 +28,7 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantMixin, TimeStampedMixin):
     total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
     tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
     net_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
+    paid_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="Draft", nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
